@@ -2121,7 +2121,7 @@ public:
             else {
                 char stackBuffer[4096];
                 MemoryPoolAllocator<> stackAllocator(stackBuffer, sizeof(stackBuffer));
-                DocumentType d(&documentAllocator_, 1024, &stackAllocator);
+                DocumentType d(ValueHandler<UTF8<>, MemoryPoolAllocator<>>(), &documentAllocator_, 1024, &stackAllocator);
                 d.Parse(json);
                 sd_[i] = new SchemaDocumentType(d, uris[i], static_cast<SizeType>(strlen(uris[i])), 0, &schemaAllocator_);
                 MemoryPoolAllocator<>::Free(json);
@@ -2217,7 +2217,7 @@ TEST(SchemaValidator, TestSuite) {
         }
         else {
             //printf("\njson test suite file %s parsed ok\n", filename);
-            GenericDocument<UTF8<>, MemoryPoolAllocator<>, MemoryPoolAllocator<> > d(&documentAllocator, 1024, &documentStackAllocator);
+            GenericDocument<UTF8<>, MemoryPoolAllocator<>, MemoryPoolAllocator<> > d(ValueHandler<UTF8<>, MemoryPoolAllocator<>>(), &documentAllocator, 1024, &documentStackAllocator);
             d.Parse(json);
             if (d.HasParseError()) {
                 printf("json test suite file %s has parse error", filename);

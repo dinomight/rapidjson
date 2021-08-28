@@ -204,7 +204,7 @@ TEST(Value, EqualtoOperator) {
     // Test operator==() (including different allocators)
     CrtAllocator crtAllocator;
     GenericValue<UTF8<>, CrtAllocator> y;
-    GenericDocument<UTF8<>, CrtAllocator> z(&crtAllocator);
+    GenericDocument<UTF8<>, CrtAllocator> z(ValueHandler<UTF8<>, CrtAllocator>(), &crtAllocator);
     y.CopyFrom(x, crtAllocator);
     z.CopyFrom(y, z.GetAllocator());
     TestEqual(x, y);

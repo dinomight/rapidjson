@@ -101,24 +101,27 @@ class PrettyWriter;
 
 // document.h
 
-template <typename Encoding, typename Allocator> 
+template <typename ValueType> 
 class GenericMember;
 
-template <bool Const, typename Encoding, typename Allocator>
+template <bool Const, typename Encoding, typename Allocator, typename Derived>
 class GenericMemberIterator;
 
 template<typename CharType>
 struct GenericStringRef;
 
-template <typename Encoding, typename Allocator> 
+template <typename Encoding, typename Allocator, typename Derived> 
 class GenericValue;
 
-typedef GenericValue<UTF8<char>, MemoryPoolAllocator<CrtAllocator> > Value;
+typedef GenericValue<UTF8<char>, MemoryPoolAllocator<CrtAllocator>, void > Value;
 
-template <typename Encoding, typename Allocator, typename StackAllocator>
+template <typename Encoding, typename Allocator, typename StackAllocator, typename ValueHandler>
 class GenericDocument;
 
-typedef GenericDocument<UTF8<char>, MemoryPoolAllocator<CrtAllocator>, CrtAllocator> Document;
+template <typename Encoding, typename Allocator>
+struct ValueHandler;
+
+typedef GenericDocument<UTF8<char>, MemoryPoolAllocator<CrtAllocator>, CrtAllocator, ValueHandler<UTF8<char>, MemoryPoolAllocator<CrtAllocator>>> Document;
 
 // pointer.h
 

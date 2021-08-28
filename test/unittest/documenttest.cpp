@@ -375,7 +375,7 @@ TEST(Document, UserBuffer) {
     char parseBuffer[1024];
     MemoryPoolAllocator<> valueAllocator(valueBuffer, sizeof(valueBuffer));
     MemoryPoolAllocator<> parseAllocator(parseBuffer, sizeof(parseBuffer));
-    DocumentType doc(&valueAllocator, sizeof(parseBuffer) / 2, &parseAllocator);
+    DocumentType doc(ValueHandler<UTF8<>, MemoryPoolAllocator<>>(), &valueAllocator, sizeof(parseBuffer) / 2, &parseAllocator);
     doc.Parse(" { \"hello\" : \"world\", \"t\" : true , \"f\" : false, \"n\": null, \"i\":123, \"pi\": 3.1416, \"a\":[1, 2, 3, 4] } ");
     EXPECT_FALSE(doc.HasParseError());
     EXPECT_LE(valueAllocator.Size(), sizeof(valueBuffer));
@@ -468,7 +468,7 @@ TYPED_TEST(DocumentMove, MoveConstructor) {
     typedef GenericDocument<UTF8<>, Allocator> D;
     Allocator allocator;
 
-    D a(&allocator);
+    D a(ValueHandler<UTF8<>, Allocator>(), &allocator);
     a.Parse("[\"one\", \"two\", \"three\"]");
     EXPECT_FALSE(a.HasParseError());
     EXPECT_TRUE(a.IsArray());
@@ -565,7 +565,7 @@ TYPED_TEST(DocumentMove, MoveAssignment) {
     typedef GenericDocument<UTF8<>, Allocator> D;
     Allocator allocator;
 
-    D a(&allocator);
+    D a(ValueHandler<UTF8<>, Allocator>(), &allocator);
     a.Parse("[\"one\", \"two\", \"three\"]");
     EXPECT_FALSE(a.HasParseError());
     EXPECT_TRUE(a.IsArray());

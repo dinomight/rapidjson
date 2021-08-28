@@ -62,10 +62,10 @@ RAPIDJSON_DIAG_OFF(effc++)
 RAPIDJSON_NAMESPACE_BEGIN
 
 // Forward declaration.
-template <typename Encoding, typename Allocator>
+template <typename Encoding, typename Allocator, typename Derived>
 class GenericValue;
 
-template <typename Encoding, typename Allocator, typename StackAllocator>
+template <typename Encoding, typename Allocator, typename StackAllocator, typename ValueHandler>
 class GenericDocument;
 
 /*! \def RAPIDJSON_DEFAULT_ALLOCATOR
@@ -116,11 +116,11 @@ class GenericDocument;
     But a compiler (IBM XL C/C++ for AIX) have reported to have problem with that so it moved as a namespace scope struct.
     https://code.google.com/p/rapidjson/issues/detail?id=64
 */
-template <typename Encoding, typename Allocator> 
+template <typename ValueType> 
 class GenericMember {
 public:
-    GenericValue<Encoding, Allocator> name;     //!< name of member (must be a string)
-    GenericValue<Encoding, Allocator> value;    //!< value of member.
+    ValueType name;     //!< name of member (must be a string)
+    ValueType value;    //!< value of member.
 
 #if RAPIDJSON_HAS_CXX11_RVALUE_REFS
     //! Move constructor in C++11
@@ -182,22 +182,26 @@ private:
 
     \see GenericMember, GenericValue::MemberIterator, GenericValue::ConstMemberIterator
  */
-template <bool Const, typename Encoding, typename Allocator>
+template <bool Const, typename EncodingType, typename AllocatorType, typename DerivedType>
 class GenericMemberIterator {
 
-    friend class GenericValue<Encoding,Allocator>;
-    template <bool, typename, typename> friend class GenericMemberIterator;
+    friend class GenericValue<EncodingType, AllocatorType, DerivedType>;
+    template <bool, typename, typename, typename> friend class GenericMemberIterator;
+    
+    typedef typename internal::SelectIf<internal::IsSame<DerivedType, void>,
+        GenericValue<EncodingType, AllocatorType, DerivedType>,
+        DerivedType>::Type MemberValueType;
 
-    typedef GenericMember<Encoding,Allocator> PlainType;
+    typedef GenericMember<MemberValueType> PlainType;
     typedef typename internal::MaybeAddConst<Const,PlainType>::Type ValueType;
 
 public:
     //! Iterator type itself
     typedef GenericMemberIterator Iterator;
     //! Constant iterator type
-    typedef GenericMemberIterator<true,Encoding,Allocator>  ConstIterator;
+    typedef GenericMemberIterator<true,EncodingType,AllocatorType,DerivedType>  ConstIterator;
     //! Non-constant iterator type
-    typedef GenericMemberIterator<false,Encoding,Allocator> NonConstIterator;
+    typedef GenericMemberIterator<false,EncodingType,AllocatorType,DerivedType> NonConstIterator;
 
     /** \name std::iterator_traits support */
     //@{
@@ -259,15 +263,15 @@ public:
 
     //! @name relations
     //@{
-    template <bool Const_> bool operator==(const GenericMemberIterator<Const_, Encoding, Allocator>& that) const { return ptr_ == that.ptr_; }
-    template <bool Const_> bool operator!=(const GenericMemberIterator<Const_, Encoding, Allocator>& that) const { return ptr_ != that.ptr_; }
-    template <bool Const_> bool operator<=(const GenericMemberIterator<Const_, Encoding, Allocator>& that) const { return ptr_ <= that.ptr_; }
-    template <bool Const_> bool operator>=(const GenericMemberIterator<Const_, Encoding, Allocator>& that) const { return ptr_ >= that.ptr_; }
-    template <bool Const_> bool operator< (const GenericMemberIterator<Const_, Encoding, Allocator>& that) const { return ptr_ < that.ptr_; }
-    template <bool Const_> bool operator> (const GenericMemberIterator<Const_, Encoding, Allocator>& that) const { return ptr_ > that.ptr_; }
+    template <bool Const_> bool operator==(const GenericMemberIterator<Const_, EncodingType, AllocatorType, DerivedType>& that) const { return ptr_ == that.ptr_; }
+    template <bool Const_> bool operator!=(const GenericMemberIterator<Const_, EncodingType, AllocatorType, DerivedType>& that) const { return ptr_ != that.ptr_; }
+    template <bool Const_> bool operator<=(const GenericMemberIterator<Const_, EncodingType, AllocatorType, DerivedType>& that) const { return ptr_ <= that.ptr_; }
+    template <bool Const_> bool operator>=(const GenericMemberIterator<Const_, EncodingType, AllocatorType, DerivedType>& that) const { return ptr_ >= that.ptr_; }
+    template <bool Const_> bool operator< (const GenericMemberIterator<Const_, EncodingType, AllocatorType, DerivedType>& that) const { return ptr_ < that.ptr_; }
+    template <bool Const_> bool operator> (const GenericMemberIterator<Const_, EncodingType, AllocatorType, DerivedType>& that) const { return ptr_ > that.ptr_; }
 
 #ifdef __cpp_lib_three_way_comparison
-    template <bool Const_> std::strong_ordering operator<=>(const GenericMemberIterator<Const_, Encoding, Allocator>& that) const { return ptr_ <=> that.ptr_; }
+    template <bool Const_> std::strong_ordering operator<=>(const GenericMemberIterator<Const_, EncodingType, AllocatorType, DerivedType>& that) const { return ptr_ <=> that.ptr_; }
 #endif
     //@}
 
@@ -292,22 +296,28 @@ private:
 
 // class-based member iterator implementation disabled, use plain pointers
 
-template <bool Const, typename Encoding, typename Allocator>
+template <bool Const, typename EncodingType, typename AllocatorType, typename DerivedType>
 class GenericMemberIterator;
 
 //! non-const GenericMemberIterator
-template <typename Encoding, typename Allocator>
-class GenericMemberIterator<false,Encoding,Allocator> {
+template <typename EncodingType, typename AllocatorType, typename DerivedType>
+class GenericMemberIterator<false,EncodingType,AllocatorType,DerivedType> {
 public:
     //! use plain pointer as iterator type
-    typedef GenericMember<Encoding,Allocator>* Iterator;
+    typedef typename internal::SelectIf<internal::IsSame<DerivedType, void>,
+        GenericValue<EncodingType, AllocatorType, DerivedType>,
+        DerivedType>::Type MemberValueType;
+    typedef GenericMember<MemberValueType>* Iterator;
 };
 //! const GenericMemberIterator
-template <typename Encoding, typename Allocator>
-class GenericMemberIterator<true,Encoding,Allocator> {
+template <typename EncodingType, typename AllocatorType, typename DerivedTyp>
+class GenericMemberIterator<true,EncodingType,AllocatorType,DerivedType> {
 public:
     //! use plain const pointer as iterator type
-    typedef const GenericMember<Encoding,Allocator>* Iterator;
+    typedef typename internal::SelectIf<internal::IsSame<DerivedType, void>,
+        GenericValue<EncodingType, AllocatorType, DerivedType>,
+        DerivedType>::Type MemberValueType;
+    typedef const GenericMember<MemberValueType>* Iterator;
 };
 
 #endif // RAPIDJSON_NOMEMBERITERATORCLASS
@@ -498,12 +508,12 @@ inline GenericStringRef<CharType> StringRef(const std::basic_string<CharType>& s
 // GenericValue type traits
 namespace internal {
 
-template <typename T, typename Encoding = void, typename Allocator = void>
+template <typename T, typename Encoding = void, typename Allocator = void, typename Derived = void>
 struct IsGenericValueImpl : FalseType {};
 
 // select candidates according to nested encoding and allocator types
-template <typename T> struct IsGenericValueImpl<T, typename Void<typename T::EncodingType>::Type, typename Void<typename T::AllocatorType>::Type>
-    : IsBaseOf<GenericValue<typename T::EncodingType, typename T::AllocatorType>, T>::Type {};
+template <typename T> struct IsGenericValueImpl<T, typename Void<typename T::EncodingType>::Type, typename Void<typename T::AllocatorType>::Type, typename Void<typename T::Override>::Type>
+    : IsBaseOf<GenericValue<typename T::EncodingType, typename T::AllocatorType, typename T::DerivedType>, T>::Type {};
 
 // helper to match arbitrary GenericValue instantiations, including derived classes
 template <typename T> struct IsGenericValue : IsGenericValueImpl<T>::Type {};
@@ -664,24 +674,30 @@ template <bool, typename> class GenericObject;
     \tparam Encoding    Encoding of the value. (Even non-string values need to have the same encoding in a document)
     \tparam Allocator   Allocator type for allocating memory of object, array and string.
 */
-template <typename Encoding, typename Allocator = RAPIDJSON_DEFAULT_ALLOCATOR >
+template <typename Encoding, typename Allocator = RAPIDJSON_DEFAULT_ALLOCATOR, typename Derived = void >
 class GenericValue {
 public:
     //! Name-value pair in an object.
-    typedef GenericMember<Encoding, Allocator> Member;
+
     typedef Encoding EncodingType;                  //!< Encoding type from template parameter.
     typedef Allocator AllocatorType;                //!< Allocator type from template parameter.
     typedef typename Encoding::Ch Ch;               //!< Character type derived from Encoding.
+
     typedef GenericStringRef<Ch> StringRefType;     //!< Reference to a constant string
-    typedef typename GenericMemberIterator<false,Encoding,Allocator>::Iterator MemberIterator;  //!< Member iterator for iterating in object.
-    typedef typename GenericMemberIterator<true,Encoding,Allocator>::Iterator ConstMemberIterator;  //!< Constant member iterator for iterating in object.
-    typedef GenericValue* ValueIterator;            //!< Value iterator for iterating in array.
-    typedef const GenericValue* ConstValueIterator; //!< Constant value iterator for iterating in array.
-    typedef GenericValue<Encoding, Allocator> ValueType;    //!< Value type of itself.
+    
+    typedef Derived DerivedType;
+    typedef typename internal::SelectIf<internal::IsSame<Derived, void>, GenericValue, Derived>::Type Override;
+
+    typedef Override ValueType;    //!< Value type of itself.
     typedef GenericArray<false, ValueType> Array;
     typedef GenericArray<true, ValueType> ConstArray;
     typedef GenericObject<false, ValueType> Object;
     typedef GenericObject<true, ValueType> ConstObject;
+    typedef GenericMember<ValueType> Member;
+    typedef typename GenericMemberIterator<false,EncodingType,AllocatorType,DerivedType>::Iterator MemberIterator;  //!< Member iterator for iterating in object.
+    typedef typename GenericMemberIterator<true,EncodingType,AllocatorType,DerivedType>::Iterator ConstMemberIterator;  //!< Constant member iterator for iterating in object.
+    typedef ValueType* ValueIterator;            //!< Value iterator for iterating in array.
+    typedef const ValueType* ConstValueIterator; //!< Constant value iterator for iterating in array.
 
     //!@name Constructors and destructor.
     //@{
@@ -702,12 +718,12 @@ private:
 
 #if RAPIDJSON_HAS_CXX11_RVALUE_REFS
     //! Moving from a GenericDocument is not permitted.
-    template <typename StackAllocator>
-    GenericValue(GenericDocument<Encoding,Allocator,StackAllocator>&& rhs);
+    template <typename StackAllocator, typename ValueHandler>
+    GenericValue(GenericDocument<Encoding,Allocator,StackAllocator,ValueHandler>&& rhs);
 
     //! Move assignment from a GenericDocument is not permitted.
-    template <typename StackAllocator>
-    GenericValue& operator=(GenericDocument<Encoding,Allocator,StackAllocator>&& rhs);
+    template <typename StackAllocator, typename ValueHandler>
+    GenericValue& operator=(GenericDocument<Encoding,Allocator,StackAllocator,ValueHandler>&& rhs);
 #endif
 
 public:
@@ -746,10 +762,10 @@ public:
             break;
         case kArrayType: {
                 SizeType count = rhs.data_.a.size;
-                GenericValue* le = reinterpret_cast<GenericValue*>(allocator.Malloc(count * sizeof(GenericValue)));
+                Override* le = reinterpret_cast<Override*>(allocator.Malloc(count * sizeof(Override)));
                 const GenericValue<Encoding,SourceAllocator>* re = rhs.GetElementsPointer();
                 for (SizeType i = 0; i < count; i++)
-                    new (&le[i]) GenericValue(re[i], allocator, copyConstStrings);
+                    new (&le[i]) Override(re[i], allocator, copyConstStrings);
                 data_.f.flags = kArrayFlag;
                 data_.a.size = data_.a.capacity = count;
                 SetElementsPointer(le);
@@ -885,9 +901,9 @@ public:
             switch(data_.f.flags) {
             case kArrayFlag:
                 {
-                    GenericValue* e = GetElementsPointer();
-                    for (GenericValue* v = e; v != e + data_.a.size; ++v)
-                        v->~GenericValue();
+                    Override* e = GetElementsPointer();
+                    for (Override* v = e; v != e + data_.a.size; ++v)
+                        v->~Override();
                     if (Allocator::kNeedFree) { // Shortcut by Allocator's trait
                         Allocator::Free(e);
                     }
@@ -923,9 +939,9 @@ public:
             // Can't destroy "this" before assigning "rhs", otherwise "rhs"
             // could be used after free if it's an sub-Value of "this",
             // hence the temporary danse.
-            GenericValue temp;
+            Override temp;
             temp.RawAssign(rhs);
-            this->~GenericValue();
+            static_cast<Override*>(this)->~Override();
             RawAssign(temp);
         }
         return *this;
@@ -944,7 +960,7 @@ public:
         \see GenericStringRef, operator=(T)
     */
     GenericValue& operator=(StringRefType str) RAPIDJSON_NOEXCEPT {
-        GenericValue s(str);
+        Override s(str);
         return *this = s;
     }
 
@@ -963,7 +979,7 @@ public:
     template <typename T>
     RAPIDJSON_DISABLEIF_RETURN((internal::IsPointer<T>), (GenericValue&))
     operator=(T value) {
-        GenericValue v(value);
+        Override v(value);
         return *this = v;
     }
 
@@ -977,8 +993,8 @@ public:
     template <typename SourceAllocator>
     GenericValue& CopyFrom(const GenericValue<Encoding, SourceAllocator>& rhs, Allocator& allocator, bool copyConstStrings = false) {
         RAPIDJSON_ASSERT(static_cast<void*>(this) != static_cast<void const*>(&rhs));
-        this->~GenericValue();
-        new (this) GenericValue(rhs, allocator, copyConstStrings);
+        static_cast<Override*>(this)->~Override();
+        new (this) Override(rhs, allocator, copyConstStrings);
         return *this;
     }
 
@@ -1166,7 +1182,7 @@ public:
     //!@name Null
     //@{
 
-    GenericValue& SetNull() { this->~GenericValue(); new (this) GenericValue(); return *this; }
+    ValueType& SetNull() { static_cast<ValueType*>(this)->~ValueType(); new (this) ValueType(); return *static_cast<ValueType*>(this); }
 
     //@}
 
@@ -1176,7 +1192,7 @@ public:
     bool GetBool() const { RAPIDJSON_ASSERT(IsBool()); return data_.f.flags == kTrueFlag; }
     //!< Set boolean value
     /*! \post IsBool() == true */
-    GenericValue& SetBool(bool b) { this->~GenericValue(); new (this) GenericValue(b); return *this; }
+    ValueType& SetBool(bool b) { static_cast<ValueType*>(this)->~ValueType(); new (this) ValueType(b); return *static_cast<ValueType*>(this); }
 
     //@}
 
@@ -1185,7 +1201,7 @@ public:
 
     //! Set this value as an empty object.
     /*! \post IsObject() == true */
-    GenericValue& SetObject() { this->~GenericValue(); new (this) GenericValue(kObjectType); return *this; }
+    ValueType& SetObject() { static_cast<ValueType*>(this)->~ValueType(); new (this) ValueType(kObjectType); return *static_cast<ValueType*>(this); }
 
     //! Get the number of members in the object.
     SizeType MemberCount() const { RAPIDJSON_ASSERT(IsObject()); return data_.o.size; }
@@ -1206,12 +1222,12 @@ public:
         \note Linear time complexity.
     */
     template <typename T>
-    RAPIDJSON_DISABLEIF_RETURN((internal::NotExpr<internal::IsSame<typename internal::RemoveConst<T>::Type, Ch> >),(GenericValue&)) operator[](T* name) {
-        GenericValue n(StringRef(name));
-        return (*this)[n];
+    RAPIDJSON_DISABLEIF_RETURN((internal::NotExpr<internal::IsSame<typename internal::RemoveConst<T>::Type, Ch> >),(ValueType&)) operator[](T* name) {
+        ValueType n(StringRef(name));
+        return (*static_cast<ValueType*>(this))[n];
     }
     template <typename T>
-    RAPIDJSON_DISABLEIF_RETURN((internal::NotExpr<internal::IsSame<typename internal::RemoveConst<T>::Type, Ch> >),(const GenericValue&)) operator[](T* name) const { return const_cast<GenericValue&>(*this)[name]; }
+    RAPIDJSON_DISABLEIF_RETURN((internal::NotExpr<internal::IsSame<typename internal::RemoveConst<T>::Type, Ch> >),(const ValueType&)) operator[](T* name) const { return const_cast<ValueType&>(*this)[name]; }
 
     //! Get a value from an object associated with the name.
     /*! \pre IsObject() == true
@@ -1222,8 +1238,8 @@ public:
 
         \note Linear time complexity.
     */
-    template <typename SourceAllocator>
-    GenericValue& operator[](const GenericValue<Encoding, SourceAllocator>& name) {
+    template <typename SourceAllocator, typename SourceValueType>
+    ValueType& operator[](const GenericValue<Encoding, SourceAllocator, SourceValueType>& name) {
         MemberIterator member = FindMember(name);
         if (member != MemberEnd())
             return member->value;
@@ -1235,17 +1251,17 @@ public:
             // return NullValue;
 
             // Use static buffer and placement-new to prevent destruction
-            static char buffer[sizeof(GenericValue)];
-            return *new (buffer) GenericValue();
+            static char buffer[sizeof(ValueType)];
+            return *new (buffer) ValueType();
         }
     }
     template <typename SourceAllocator>
-    const GenericValue& operator[](const GenericValue<Encoding, SourceAllocator>& name) const { return const_cast<GenericValue&>(*this)[name]; }
+    const ValueType& operator[](const GenericValue<Encoding, SourceAllocator>& name) const { return const_cast<ValueType&>(*this)[name]; }
 
 #if RAPIDJSON_HAS_STDSTRING
     //! Get a value from an object associated with name (string object).
-    GenericValue& operator[](const std::basic_string<Ch>& name) { return (*this)[GenericValue(StringRef(name))]; }
-    const GenericValue& operator[](const std::basic_string<Ch>& name) const { return (*this)[GenericValue(StringRef(name))]; }
+    ValueType& operator[](const std::basic_string<Ch>& name) { return (*this)[GenericValue(StringRef(name))]; }
+    const ValueType& operator[](const std::basic_string<Ch>& name) const { return (*this)[GenericValue(StringRef(name))]; }
 #endif
 
     //! Const member iterator
@@ -1267,10 +1283,10 @@ public:
         \return The value itself for fluent API.
         \note Linear time complexity.
     */
-    GenericValue& MemberReserve(SizeType newCapacity, Allocator &allocator) {
+    ValueType& MemberReserve(SizeType newCapacity, Allocator &allocator) {
         RAPIDJSON_ASSERT(IsObject());
         DoReserveMembers(newCapacity, allocator);
-        return *this;
+        return *static_cast<ValueType*>(this);
     }
 
     //! Check whether a member exists in the object.
@@ -1339,13 +1355,14 @@ public:
             \c std::map, this has been changed to MemberEnd() now.
         \note Linear time complexity.
     */
-    template <typename SourceAllocator>
-    MemberIterator FindMember(const GenericValue<Encoding, SourceAllocator>& name) {
+    template <typename SourceAllocator, typename SourceValueType>
+    MemberIterator FindMember(const GenericValue<Encoding, SourceAllocator, SourceValueType>& name) {
         RAPIDJSON_ASSERT(IsObject());
         RAPIDJSON_ASSERT(name.IsString());
         return DoFindMember(name);
     }
-    template <typename SourceAllocator> ConstMemberIterator FindMember(const GenericValue<Encoding, SourceAllocator>& name) const { return const_cast<GenericValue&>(*this).FindMember(name); }
+    template <typename SourceAllocator, typename SourceValueType>
+    ConstMemberIterator FindMember(const GenericValue<Encoding, SourceAllocator, SourceValueType>& name) const { return const_cast<GenericValue&>(*this).FindMember(name); }
 
 #if RAPIDJSON_HAS_STDSTRING
     //! Find member by string object name.
@@ -1369,11 +1386,11 @@ public:
         \post name.IsNull() && value.IsNull()
         \note Amortized Constant time complexity.
     */
-    GenericValue& AddMember(GenericValue& name, GenericValue& value, Allocator& allocator) {
+    ValueType& AddMember(ValueType& name, ValueType& value, Allocator& allocator) {
         RAPIDJSON_ASSERT(IsObject());
         RAPIDJSON_ASSERT(name.IsString());
         DoAddMember(name, value, allocator);
-        return *this;
+        return *static_cast<ValueType*>(this);
     }
 
     //! Add a constant string value as member (name-value pair) to the object.
@@ -1385,8 +1402,8 @@ public:
         \note This overload is needed to avoid clashes with the generic primitive type AddMember(GenericValue&,T,Allocator&) overload below.
         \note Amortized Constant time complexity.
     */
-    GenericValue& AddMember(GenericValue& name, StringRefType value, Allocator& allocator) {
-        GenericValue v(value);
+    ValueType& AddMember(ValueType& name, StringRefType value, Allocator& allocator) {
+        ValueType v(value);
         return AddMember(name, v, allocator);
     }
 
@@ -1400,8 +1417,8 @@ public:
         \note This overload is needed to avoid clashes with the generic primitive type AddMember(GenericValue&,T,Allocator&) overload below.
         \note Amortized Constant time complexity.
     */
-    GenericValue& AddMember(GenericValue& name, std::basic_string<Ch>& value, Allocator& allocator) {
-        GenericValue v(value, allocator);
+    ValueType& AddMember(ValueType& name, std::basic_string<Ch>& value, Allocator& allocator) {
+        ValueType v(value, allocator);
         return AddMember(name, v, allocator);
     }
 #endif
@@ -1425,22 +1442,22 @@ public:
     */
     template <typename T>
     RAPIDJSON_DISABLEIF_RETURN((internal::OrExpr<internal::IsPointer<T>, internal::IsGenericValue<T> >), (GenericValue&))
-    AddMember(GenericValue& name, T value, Allocator& allocator) {
-        GenericValue v(value);
+    AddMember(ValueType& name, T value, Allocator& allocator) {
+        ValueType v(value);
         return AddMember(name, v, allocator);
     }
 
 #if RAPIDJSON_HAS_CXX11_RVALUE_REFS
-    GenericValue& AddMember(GenericValue&& name, GenericValue&& value, Allocator& allocator) {
+    ValueType& AddMember(ValueType&& name, ValueType&& value, Allocator& allocator) {
         return AddMember(name, value, allocator);
     }
-    GenericValue& AddMember(GenericValue&& name, GenericValue& value, Allocator& allocator) {
+    ValueType& AddMember(ValueType&& name, ValueType& value, Allocator& allocator) {
         return AddMember(name, value, allocator);
     }
-    GenericValue& AddMember(GenericValue& name, GenericValue&& value, Allocator& allocator) {
+    ValueType& AddMember(ValueType& name, ValueType&& value, Allocator& allocator) {
         return AddMember(name, value, allocator);
     }
-    GenericValue& AddMember(StringRefType name, GenericValue&& value, Allocator& allocator) {
+    ValueType& AddMember(StringRefType name, ValueType&& value, Allocator& allocator) {
         GenericValue n(name);
         return AddMember(n, value, allocator);
     }
@@ -1457,8 +1474,8 @@ public:
         \post value.IsNull()
         \note Amortized Constant time complexity.
     */
-    GenericValue& AddMember(StringRefType name, GenericValue& value, Allocator& allocator) {
-        GenericValue n(name);
+    ValueType& AddMember(StringRefType name, ValueType& value, Allocator& allocator) {
+        ValueType n(name);
         return AddMember(n, value, allocator);
     }
 
@@ -1471,8 +1488,8 @@ public:
         \note This overload is needed to avoid clashes with the generic primitive type AddMember(StringRefType,T,Allocator&) overload below.
         \note Amortized Constant time complexity.
     */
-    GenericValue& AddMember(StringRefType name, StringRefType value, Allocator& allocator) {
-        GenericValue v(value);
+    ValueType& AddMember(StringRefType name, StringRefType value, Allocator& allocator) {
+        ValueType v(value);
         return AddMember(name, v, allocator);
     }
 
@@ -1494,9 +1511,9 @@ public:
         \note Amortized Constant time complexity.
     */
     template <typename T>
-    RAPIDJSON_DISABLEIF_RETURN((internal::OrExpr<internal::IsPointer<T>, internal::IsGenericValue<T> >), (GenericValue&))
+    RAPIDJSON_DISABLEIF_RETURN((internal::OrExpr<internal::IsPointer<T>, internal::IsGenericValue<T> >), (ValueType&))
     AddMember(StringRefType name, T value, Allocator& allocator) {
-        GenericValue n(name);
+        ValueType n(name);
         return AddMember(n, value, allocator);
     }
 
@@ -1518,12 +1535,12 @@ public:
         \note Linear time complexity.
     */
     bool RemoveMember(const Ch* name) {
-        GenericValue n(StringRef(name));
+        ValueType n(StringRef(name));
         return RemoveMember(n);
     }
 
 #if RAPIDJSON_HAS_STDSTRING
-    bool RemoveMember(const std::basic_string<Ch>& name) { return RemoveMember(GenericValue(StringRef(name))); }
+    bool RemoveMember(const std::basic_string<Ch>& name) { return RemoveMember(ValueType(StringRef(name))); }
 #endif
 
     template <typename SourceAllocator>
@@ -1622,7 +1639,7 @@ public:
 
     //! Set this value as an empty array.
     /*! \post IsArray == true */
-    GenericValue& SetArray() { this->~GenericValue(); new (this) GenericValue(kArrayType); return *this; }
+    ValueType& SetArray() { static_cast<ValueType*>(this)->~ValueType(); new (this) ValueType(kArrayType); return *static_cast<ValueType*>(this); }
 
     //! Get the number of elements in array.
     SizeType Size() const { RAPIDJSON_ASSERT(IsArray()); return data_.a.size; }
@@ -1639,9 +1656,9 @@ public:
     */
     void Clear() {
         RAPIDJSON_ASSERT(IsArray()); 
-        GenericValue* e = GetElementsPointer();
-        for (GenericValue* v = e; v != e + data_.a.size; ++v)
-            v->~GenericValue();
+        ValueType* e = GetElementsPointer();
+        for (ValueType* v = e; v != e + data_.a.size; ++v)
+            v->~ValueType();
         data_.a.size = 0;
     }
 
@@ -1650,12 +1667,12 @@ public:
         \param index Zero-based index of element.
         \see operator[](T*)
     */
-    GenericValue& operator[](SizeType index) {
+    ValueType& operator[](SizeType index) {
         RAPIDJSON_ASSERT(IsArray());
         RAPIDJSON_ASSERT(index < data_.a.size);
         return GetElementsPointer()[index];
     }
-    const GenericValue& operator[](SizeType index) const { return const_cast<GenericValue&>(*this)[index]; }
+    const ValueType& operator[](SizeType index) const { return const_cast<GenericValue&>(*this)[index]; }
 
     //! Element iterator
     /*! \pre IsArray() == true */
@@ -1676,13 +1693,13 @@ public:
         \return The value itself for fluent API.
         \note Linear time complexity.
     */
-    GenericValue& Reserve(SizeType newCapacity, Allocator &allocator) {
+    ValueType& Reserve(SizeType newCapacity, Allocator &allocator) {
         RAPIDJSON_ASSERT(IsArray());
         if (newCapacity > data_.a.capacity) {
-            SetElementsPointer(reinterpret_cast<GenericValue*>(allocator.Realloc(GetElementsPointer(), data_.a.capacity * sizeof(GenericValue), newCapacity * sizeof(GenericValue))));
+            SetElementsPointer(reinterpret_cast<ValueType*>(allocator.Realloc(GetElementsPointer(), data_.a.capacity * sizeof(ValueType), newCapacity * sizeof(ValueType))));
             data_.a.capacity = newCapacity;
         }
-        return *this;
+        return *static_cast<ValueType*>(this);
     }
 
     //! Append a GenericValue at the end of the array.
@@ -1695,7 +1712,7 @@ public:
         \note If the number of elements to be appended is known, calls Reserve() once first may be more efficient.
         \note Amortized constant time complexity.
     */
-    GenericValue& PushBack(GenericValue& value, Allocator& allocator) {
+    ValueType& PushBack(ValueType& value, Allocator& allocator) {
         RAPIDJSON_ASSERT(IsArray());
         if (data_.a.size >= data_.a.capacity)
             Reserve(data_.a.capacity == 0 ? kDefaultArrayCapacity : (data_.a.capacity + (data_.a.capacity + 1) / 2), allocator);
@@ -1704,7 +1721,7 @@ public:
     }
 
 #if RAPIDJSON_HAS_CXX11_RVALUE_REFS
-    GenericValue& PushBack(GenericValue&& value, Allocator& allocator) {
+    ValueType& PushBack(ValueType&& value, Allocator& allocator) {
         return PushBack(value, allocator);
     }
 #endif // RAPIDJSON_HAS_CXX11_RVALUE_REFS
@@ -1718,7 +1735,7 @@ public:
         \note Amortized constant time complexity.
         \see GenericStringRef
     */
-    GenericValue& PushBack(StringRefType value, Allocator& allocator) {
+    ValueType& PushBack(StringRefType value, Allocator& allocator) {
         return (*this).template PushBack<StringRefType>(value, allocator);
     }
 
@@ -1740,9 +1757,9 @@ public:
         \note Amortized constant time complexity.
     */
     template <typename T>
-    RAPIDJSON_DISABLEIF_RETURN((internal::OrExpr<internal::IsPointer<T>, internal::IsGenericValue<T> >), (GenericValue&))
+    RAPIDJSON_DISABLEIF_RETURN((internal::OrExpr<internal::IsPointer<T>, internal::IsGenericValue<T> >), (ValueType&))
     PushBack(T value, Allocator& allocator) {
-        GenericValue v(value);
+        ValueType v(value);
         return PushBack(v, allocator);
     }
 
@@ -1750,11 +1767,11 @@ public:
     /*!
         \note Constant time complexity.
     */
-    GenericValue& PopBack() {
+    ValueType& PopBack() {
         RAPIDJSON_ASSERT(IsArray());
         RAPIDJSON_ASSERT(!Empty());
-        GetElementsPointer()[--data_.a.size].~GenericValue();
-        return *this;
+        GetElementsPointer()[--data_.a.size].~ValueType();
+        return *static_cast<ValueType*>(this);
     }
 
     //! Remove an element of array by iterator.
@@ -1785,8 +1802,8 @@ public:
         RAPIDJSON_ASSERT(last <= End());
         ValueIterator pos = Begin() + (first - Begin());
         for (ValueIterator itr = pos; itr != last; ++itr)
-            itr->~GenericValue();
-        std::memmove(static_cast<void*>(pos), last, static_cast<size_t>(End() - last) * sizeof(GenericValue));
+            itr->~ValueType();
+        std::memmove(static_cast<void*>(pos), last, static_cast<size_t>(End() - last) * sizeof(Override));
         data_.a.size -= static_cast<SizeType>(last - first);
         return pos;
     }
@@ -1823,12 +1840,12 @@ public:
         return static_cast<float>(GetDouble());
     }
 
-    GenericValue& SetInt(int i)             { this->~GenericValue(); new (this) GenericValue(i);    return *this; }
-    GenericValue& SetUint(unsigned u)       { this->~GenericValue(); new (this) GenericValue(u);    return *this; }
-    GenericValue& SetInt64(int64_t i64)     { this->~GenericValue(); new (this) GenericValue(i64);  return *this; }
-    GenericValue& SetUint64(uint64_t u64)   { this->~GenericValue(); new (this) GenericValue(u64);  return *this; }
-    GenericValue& SetDouble(double d)       { this->~GenericValue(); new (this) GenericValue(d);    return *this; }
-    GenericValue& SetFloat(float f)         { this->~GenericValue(); new (this) GenericValue(static_cast<double>(f)); return *this; }
+    ValueType& SetInt(int i)             { static_cast<ValueType*>(this)->~ValueType(); new (this) ValueType(i);    return *static_cast<ValueType*>(this); }
+    ValueType& SetUint(unsigned u)       { static_cast<ValueType*>(this)->~ValueType(); new (this) ValueType(u);    return *static_cast<ValueType*>(this); }
+    ValueType& SetInt64(int64_t i64)     { static_cast<ValueType*>(this)->~ValueType(); new (this) ValueType(i64);  return *static_cast<ValueType*>(this); }
+    ValueType& SetUint64(uint64_t u64)   { static_cast<ValueType*>(this)->~ValueType(); new (this) ValueType(u64);  return *static_cast<ValueType*>(this); }
+    ValueType& SetDouble(double d)       { static_cast<ValueType*>(this)->~ValueType(); new (this) ValueType(d);    return *static_cast<ValueType*>(this); }
+    ValueType& SetFloat(float f)         { static_cast<ValueType*>(this)->~ValueType(); new (this) ValueType(static_cast<double>(f)); return *static_cast<ValueType*>(this); }
 
     //@}
 
@@ -1850,14 +1867,14 @@ public:
         \post IsString() == true && GetString() == s && GetStringLength() == length
         \see SetString(StringRefType)
     */
-    GenericValue& SetString(const Ch* s, SizeType length) { return SetString(StringRef(s, length)); }
+    ValueType& SetString(const Ch* s, SizeType length) { return SetString(StringRef(s, length)); }
 
     //! Set this value as a string without copying source string.
     /*! \param s source string reference
         \return The value itself for fluent API.
         \post IsString() == true && GetString() == s && GetStringLength() == s.length
     */
-    GenericValue& SetString(StringRefType s) { this->~GenericValue(); SetStringRaw(s); return *this; }
+    ValueType& SetString(StringRefType s) { static_cast<ValueType*>(this)->~Override(); SetStringRaw(s); return *static_cast<ValueType*>(this); }
 
     //! Set this value as a string by copying from source string.
     /*! This version has better performance with supplied length, and also support string containing null character.
@@ -1867,7 +1884,7 @@ public:
         \return The value itself for fluent API.
         \post IsString() == true && GetString() != s && strcmp(GetString(),s) == 0 && GetStringLength() == length
     */
-    GenericValue& SetString(const Ch* s, SizeType length, Allocator& allocator) { return SetString(StringRef(s, length), allocator); }
+    ValueType& SetString(const Ch* s, SizeType length, Allocator& allocator) { return SetString(StringRef(s, length), allocator); }
 
     //! Set this value as a string by copying from source string.
     /*! \param s source string. 
@@ -1875,7 +1892,7 @@ public:
         \return The value itself for fluent API.
         \post IsString() == true && GetString() != s && strcmp(GetString(),s) == 0 && GetStringLength() == length
     */
-    GenericValue& SetString(const Ch* s, Allocator& allocator) { return SetString(StringRef(s), allocator); }
+    ValueType& SetString(const Ch* s, Allocator& allocator) { return SetString(StringRef(s), allocator); }
 
     //! Set this value as a string by copying from source string.
     /*! \param s source string reference
@@ -1883,7 +1900,7 @@ public:
         \return The value itself for fluent API.
         \post IsString() == true && GetString() != s.s && strcmp(GetString(),s) == 0 && GetStringLength() == length
     */
-    GenericValue& SetString(StringRefType s, Allocator& allocator) { this->~GenericValue(); SetStringRaw(s, allocator); return *this; }
+    ValueType& SetString(StringRefType s, Allocator& allocator) { static_cast<ValueType*>(this)->~ValueType(); SetStringRaw(s, allocator); return *static_cast<ValueType*>(this); }
 
 #if RAPIDJSON_HAS_STDSTRING
     //! Set this value as a string by copying from source string.
@@ -1893,7 +1910,7 @@ public:
         \post IsString() == true && GetString() != s.data() && strcmp(GetString(),s.data() == 0 && GetStringLength() == s.size()
         \note Requires the definition of the preprocessor symbol \ref RAPIDJSON_HAS_STDSTRING.
     */
-    GenericValue& SetString(const std::basic_string<Ch>& s, Allocator& allocator) { return SetString(StringRef(s), allocator); }
+    ValueType& SetString(const std::basic_string<Ch>& s, Allocator& allocator) { return SetString(StringRef(s), allocator); }
 #endif
 
     //@}
@@ -1970,8 +1987,8 @@ public:
     }
 
 private:
-    template <typename, typename> friend class GenericValue;
-    template <typename, typename, typename> friend class GenericDocument;
+    template <typename, typename, typename> friend class GenericValue;
+    template <typename, typename, typename, typename> friend class GenericDocument;
 
     enum {
         kBoolFlag       = 0x0008,
@@ -2077,7 +2094,7 @@ private:
     struct ArrayData {
         SizeType size;
         SizeType capacity;
-        GenericValue* elements;
+        Override* elements;
     };  // 12 bytes in 32-bit mode, 16 bytes in 64-bit mode
 
     union Data {
@@ -2098,8 +2115,8 @@ private:
 
     RAPIDJSON_FORCEINLINE const Ch* GetStringPointer() const { return RAPIDJSON_GETPOINTER(Ch, data_.s.str); }
     RAPIDJSON_FORCEINLINE const Ch* SetStringPointer(const Ch* str) { return RAPIDJSON_SETPOINTER(Ch, data_.s.str, str); }
-    RAPIDJSON_FORCEINLINE GenericValue* GetElementsPointer() const { return RAPIDJSON_GETPOINTER(GenericValue, data_.a.elements); }
-    RAPIDJSON_FORCEINLINE GenericValue* SetElementsPointer(GenericValue* elements) { return RAPIDJSON_SETPOINTER(GenericValue, data_.a.elements, elements); }
+    RAPIDJSON_FORCEINLINE ValueType* GetElementsPointer() const { return RAPIDJSON_GETPOINTER(ValueType, data_.a.elements); }
+    RAPIDJSON_FORCEINLINE ValueType* SetElementsPointer(Override* elements) { return RAPIDJSON_SETPOINTER(ValueType, data_.a.elements, elements); }
     RAPIDJSON_FORCEINLINE Member* GetMembersPointer() const { return RAPIDJSON_GETPOINTER(Member, data_.o.members); }
     RAPIDJSON_FORCEINLINE Member* SetMembersPointer(Member* members) { return RAPIDJSON_SETPOINTER(Member, data_.o.members, members); }
 
@@ -2263,8 +2280,8 @@ private:
         }
     }
 
-    template <typename SourceAllocator>
-    MemberIterator DoFindMember(const GenericValue<Encoding, SourceAllocator>& name) {
+    template <typename SourceAllocator, typename SourceValueType>
+    MemberIterator DoFindMember(const GenericValue<Encoding, SourceAllocator, SourceValueType>& name) {
         MemberIterator member = MemberBegin();
         for ( ; member != MemberEnd(); ++member)
             if (name.StringEqual(member->name))
@@ -2373,8 +2390,8 @@ private:
         MapIterator* mit = GetMapIterators(map);
 #endif
         for (SizeType i = 0; i < count; i++) {
-            new (&lm[i].name) GenericValue(rm[i].name, allocator, copyConstStrings);
-            new (&lm[i].value) GenericValue(rm[i].value, allocator, copyConstStrings);
+            new (&lm[i].name) ValueType(rm[i].name, allocator, copyConstStrings);
+            new (&lm[i].value) ValueType(rm[i].value, allocator, copyConstStrings);
 #if RAPIDJSON_USE_MEMBERSMAP
             new (&mit[i]) MapIterator(map->insert(MapPair(lm[i].name.data_, i)));
 #endif
@@ -2384,12 +2401,12 @@ private:
     }
 
     // Initialize this value as array with initial data, without calling destructor.
-    void SetArrayRaw(GenericValue* values, SizeType count, Allocator& allocator) {
+    void SetArrayRaw(ValueType* values, SizeType count, Allocator& allocator) {
         data_.f.flags = kArrayFlag;
         if (count) {
-            GenericValue* e = static_cast<GenericValue*>(allocator.Malloc(count * sizeof(GenericValue)));
+            ValueType* e = static_cast<ValueType*>(allocator.Malloc(count * sizeof(ValueType)));
             SetElementsPointer(e);
-            std::memcpy(static_cast<void*>(e), values, count * sizeof(GenericValue));
+            std::memcpy(static_cast<void*>(e), values, count * sizeof(ValueType));
         }
         else
             SetElementsPointer(0);
@@ -2447,8 +2464,8 @@ private:
         rhs.data_.f.flags = kNullFlag;
     }
 
-    template <typename SourceAllocator>
-    bool StringEqual(const GenericValue<Encoding, SourceAllocator>& rhs) const {
+    template <typename SourceAllocator, typename SourceValueType>
+    bool StringEqual(const GenericValue<Encoding, SourceAllocator, SourceValueType>& rhs) const {
         RAPIDJSON_ASSERT(IsString());
         RAPIDJSON_ASSERT(rhs.IsString());
 
@@ -2469,6 +2486,13 @@ private:
 //! GenericValue with UTF8 encoding
 typedef GenericValue<UTF8<> > Value;
 
+template <typename Encoding, typename Allocator = RAPIDJSON_DEFAULT_ALLOCATOR>
+struct ValueHandler
+{
+    typedef GenericValue<Encoding, Allocator> ValueType;
+    static void NewValue(ValueType const&) {}
+};
+
 ///////////////////////////////////////////////////////////////////////////////
 // GenericDocument 
 
@@ -2476,15 +2500,16 @@ typedef GenericValue<UTF8<> > Value;
 /*!
     \note implements Handler concept
     \tparam Encoding Encoding for both parsing and string storage.
+    \tparam Derived Derived document implementation.
     \tparam Allocator Allocator for allocating memory for the DOM
     \tparam StackAllocator Allocator for allocating memory for stack during parsing.
     \warning Although GenericDocument inherits from GenericValue, the API does \b not provide any virtual functions, especially no virtual destructor.  To avoid memory leaks, do not \c delete a GenericDocument object via a pointer to a GenericValue.
 */
-template <typename Encoding, typename Allocator = RAPIDJSON_DEFAULT_ALLOCATOR, typename StackAllocator = RAPIDJSON_DEFAULT_STACK_ALLOCATOR >
-class GenericDocument : public GenericValue<Encoding, Allocator> {
+template <typename Encoding, typename Allocator = RAPIDJSON_DEFAULT_ALLOCATOR, typename StackAllocator = RAPIDJSON_DEFAULT_STACK_ALLOCATOR, typename ValueHandler = ValueHandler<Encoding, Allocator> >
+class GenericDocument : public ValueHandler::ValueType {
 public:
     typedef typename Encoding::Ch Ch;                       //!< Character type derived from Encoding.
-    typedef GenericValue<Encoding, Allocator> ValueType;    //!< Value type of the document.
+    typedef typename ValueHandler::ValueType ValueType;     //!< Value type of the document.
     typedef Allocator AllocatorType;                        //!< Allocator type from template parameter.
 
     //! Constructor
@@ -2494,8 +2519,8 @@ public:
         \param stackCapacity    Optional initial capacity of stack in bytes.
         \param stackAllocator   Optional allocator for allocating memory for stack.
     */
-    explicit GenericDocument(Type type, Allocator* allocator = 0, size_t stackCapacity = kDefaultStackCapacity, StackAllocator* stackAllocator = 0) :
-        GenericValue<Encoding, Allocator>(type),  allocator_(allocator), ownAllocator_(0), stack_(stackAllocator, stackCapacity), parseResult_()
+    explicit GenericDocument(Type type, ValueHandler valueHandler = ValueHandler(), Allocator* allocator = 0, size_t stackCapacity = kDefaultStackCapacity, StackAllocator* stackAllocator = 0) :
+        ValueType(type),  allocator_(allocator), ownAllocator_(0), stack_(stackAllocator, stackCapacity), parseResult_(), valueHandler_(std::move(valueHandler))
     {
         if (!allocator_)
             ownAllocator_ = allocator_ = RAPIDJSON_NEW(Allocator)();
@@ -2507,8 +2532,8 @@ public:
         \param stackCapacity    Optional initial capacity of stack in bytes.
         \param stackAllocator   Optional allocator for allocating memory for stack.
     */
-    GenericDocument(Allocator* allocator = 0, size_t stackCapacity = kDefaultStackCapacity, StackAllocator* stackAllocator = 0) : 
-        allocator_(allocator), ownAllocator_(0), stack_(stackAllocator, stackCapacity), parseResult_()
+    GenericDocument(ValueHandler valueHandler = ValueHandler(), Allocator* allocator = 0, size_t stackCapacity = kDefaultStackCapacity, StackAllocator* stackAllocator = 0) : 
+        allocator_(allocator), ownAllocator_(0), stack_(stackAllocator, stackCapacity), parseResult_(), valueHandler_(std::move(valueHandler))
     {
         if (!allocator_)
             ownAllocator_ = allocator_ = RAPIDJSON_NEW(Allocator)();
@@ -2797,35 +2822,79 @@ private:
 
     // callers of the following private Handler functions
     // template <typename,typename,typename> friend class GenericReader; // for parsing
-    template <typename, typename> friend class GenericValue; // for deep copying
+    template <typename, typename, typename> friend class GenericValue; // for deep copying
 
 public:
     // Implementation of Handler
-    bool Null() { new (stack_.template Push<ValueType>()) ValueType(); return true; }
-    bool Bool(bool b) { new (stack_.template Push<ValueType>()) ValueType(b); return true; }
-    bool Int(int i) { new (stack_.template Push<ValueType>()) ValueType(i); return true; }
-    bool Uint(unsigned i) { new (stack_.template Push<ValueType>()) ValueType(i); return true; }
-    bool Int64(int64_t i) { new (stack_.template Push<ValueType>()) ValueType(i); return true; }
-    bool Uint64(uint64_t i) { new (stack_.template Push<ValueType>()) ValueType(i); return true; }
-    bool Double(double d) { new (stack_.template Push<ValueType>()) ValueType(d); return true; }
-
-    bool RawNumber(const Ch* str, SizeType length, bool copy) { 
-        if (copy) 
-            new (stack_.template Push<ValueType>()) ValueType(str, length, GetAllocator());
-        else
-            new (stack_.template Push<ValueType>()) ValueType(str, length);
+    bool Null() {
+        auto* value = new (stack_.template Push<ValueType>()) ValueType();
+        valueHandler_.NewValue(*value);
         return true;
     }
 
-    bool String(const Ch* str, SizeType length, bool copy) { 
-        if (copy) 
-            new (stack_.template Push<ValueType>()) ValueType(str, length, GetAllocator());
-        else
-            new (stack_.template Push<ValueType>()) ValueType(str, length);
+    bool Bool(bool b) {
+        auto* value = new (stack_.template Push<ValueType>()) ValueType(b);
+        valueHandler_.NewValue(*value);
         return true;
     }
 
-    bool StartObject() { new (stack_.template Push<ValueType>()) ValueType(kObjectType); return true; }
+    bool Int(int i) {
+        auto* value = new (stack_.template Push<ValueType>()) ValueType(i);
+        valueHandler_.NewValue(*value);
+        return true;
+    }
+
+    bool Uint(unsigned i) {
+        auto* value = new (stack_.template Push<ValueType>()) ValueType(i);
+        valueHandler_.NewValue(*value);
+        return true;
+    }
+
+    bool Int64(int64_t i) {
+        auto* value = new (stack_.template Push<ValueType>()) ValueType(i);
+        valueHandler_.NewValue(*value);
+        return true;
+    }
+
+    bool Uint64(uint64_t i) {
+        auto* value = new (stack_.template Push<ValueType>()) ValueType(i);
+        valueHandler_.NewValue(*value);
+        return true;
+    }
+
+    bool Double(double d) {
+        auto* value = new (stack_.template Push<ValueType>()) ValueType(d);
+        valueHandler_.NewValue(*value);
+        return true;
+    }
+
+    bool RawNumber(const Ch* str, SizeType length, bool copy) {
+        ValueType* value;
+        if (copy) 
+            value = new (stack_.template Push<ValueType>()) ValueType(str, length, GetAllocator());
+        else
+            value = new (stack_.template Push<ValueType>()) ValueType(str, length);
+
+        valueHandler_.NewValue(*value);
+        return true;
+    }
+
+    bool String(const Ch* str, SizeType length, bool copy) {
+        ValueType* value;
+        if (copy) 
+            value = new (stack_.template Push<ValueType>()) ValueType(str, length, GetAllocator());
+        else
+            value = new (stack_.template Push<ValueType>()) ValueType(str, length);
+
+        valueHandler_.NewValue(*value);
+        return true;
+    }
+
+    bool StartObject() {
+        auto* value = new (stack_.template Push<ValueType>()) ValueType(kObjectType);
+        valueHandler_.NewValue(*value);
+        return true;
+    }
     
     bool Key(const Ch* str, SizeType length, bool copy) { return String(str, length, copy); }
 
@@ -2835,7 +2904,11 @@ public:
         return true;
     }
 
-    bool StartArray() { new (stack_.template Push<ValueType>()) ValueType(kArrayType); return true; }
+    bool StartArray() {
+        auto* value = new (stack_.template Push<ValueType>()) ValueType(kArrayType);
+        valueHandler_.NewValue(*value);
+        return true;
+    }
     
     bool EndArray(SizeType elementCount) {
         ValueType* elements = stack_.template Pop<ValueType>(elementCount);
@@ -2867,6 +2940,7 @@ private:
     Allocator* ownAllocator_;
     internal::Stack<StackAllocator> stack_;
     ParseResult parseResult_;
+    ValueHandler valueHandler_;
 };
 
 //! GenericDocument with UTF8 encoding
@@ -2890,7 +2964,7 @@ public:
     typedef typename ValueType::AllocatorType AllocatorType;
     typedef typename ValueType::StringRefType StringRefType;
 
-    template <typename, typename>
+    template <typename, typename, typename>
     friend class GenericValue;
 
     GenericArray(const GenericArray& rhs) : value_(rhs.value_) {}
@@ -2939,14 +3013,14 @@ public:
     typedef GenericObject<false, ValueT> Object;
     typedef ValueT PlainType;
     typedef typename internal::MaybeAddConst<Const,PlainType>::Type ValueType;
-    typedef GenericMemberIterator<Const, typename ValueT::EncodingType, typename ValueT::AllocatorType> MemberIterator;  // This may be const or non-const iterator
-    typedef GenericMemberIterator<true, typename ValueT::EncodingType, typename ValueT::AllocatorType> ConstMemberIterator;
+    typedef GenericMemberIterator<Const, typename ValueT::EncodingType, typename ValueT::AllocatorType, typename ValueT::DerivedType> MemberIterator;  // This may be const or non-const iterator
+    typedef GenericMemberIterator<true, typename ValueT::EncodingType, typename ValueT::AllocatorType, typename ValueT::DerivedType> ConstMemberIterator;
     typedef typename ValueType::AllocatorType AllocatorType;
     typedef typename ValueType::StringRefType StringRefType;
     typedef typename ValueType::EncodingType EncodingType;
     typedef typename ValueType::Ch Ch;
 
-    template <typename, typename>
+    template <typename, typename, typename>
     friend class GenericValue;
 
     GenericObject(const GenericObject& rhs) : value_(rhs.value_) {}
@@ -2958,7 +3032,7 @@ public:
     SizeType MemberCapacity() const { return value_.MemberCapacity(); }
     bool ObjectEmpty() const { return value_.ObjectEmpty(); }
     template <typename T> ValueType& operator[](T* name) const { return value_[name]; }
-    template <typename SourceAllocator> ValueType& operator[](const GenericValue<EncodingType, SourceAllocator>& name) const { return value_[name]; }
+    template <typename SourceAllocator, typename Derived> ValueType& operator[](const GenericValue<EncodingType, SourceAllocator, Derived>& name) const { return value_[name]; }
 #if RAPIDJSON_HAS_STDSTRING
     ValueType& operator[](const std::basic_string<Ch>& name) const { return value_[name]; }
 #endif
@@ -2969,9 +3043,9 @@ public:
 #if RAPIDJSON_HAS_STDSTRING
     bool HasMember(const std::basic_string<Ch>& name) const { return value_.HasMember(name); }
 #endif
-    template <typename SourceAllocator> bool HasMember(const GenericValue<EncodingType, SourceAllocator>& name) const { return value_.HasMember(name); }
+    template <typename SourceAllocator, typename Derived> bool HasMember(const GenericValue<EncodingType, SourceAllocator, Derived>& name) const { return value_.HasMember(name); }
     MemberIterator FindMember(const Ch* name) const { return value_.FindMember(name); }
-    template <typename SourceAllocator> MemberIterator FindMember(const GenericValue<EncodingType, SourceAllocator>& name) const { return value_.FindMember(name); }
+    template <typename SourceAllocator, typename Derived> MemberIterator FindMember(const GenericValue<EncodingType, SourceAllocator, Derived>& name) const { return value_.FindMember(name); }
 #if RAPIDJSON_HAS_STDSTRING
     MemberIterator FindMember(const std::basic_string<Ch>& name) const { return value_.FindMember(name); }
 #endif
