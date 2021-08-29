@@ -182,15 +182,11 @@ private:
 
     \see GenericMember, GenericValue::MemberIterator, GenericValue::ConstMemberIterator
  */
-template <bool Const, typename EncodingType, typename AllocatorType, typename DerivedType>
+template <bool Const, typename MemberValueType>
 class GenericMemberIterator {
 
-    friend class GenericValue<EncodingType, AllocatorType, DerivedType>;
-    template <bool, typename, typename, typename> friend class GenericMemberIterator;
-    
-    typedef typename internal::SelectIf<internal::IsSame<DerivedType, void>,
-        GenericValue<EncodingType, AllocatorType, DerivedType>,
-        DerivedType>::Type MemberValueType;
+    template <typename, typename, typename> friend class GenericValue;
+    template <bool, typename> friend class GenericMemberIterator;
 
     typedef GenericMember<MemberValueType> PlainType;
     typedef typename internal::MaybeAddConst<Const,PlainType>::Type ValueType;
@@ -199,9 +195,9 @@ public:
     //! Iterator type itself
     typedef GenericMemberIterator Iterator;
     //! Constant iterator type
-    typedef GenericMemberIterator<true,EncodingType,AllocatorType,DerivedType>  ConstIterator;
+    typedef GenericMemberIterator<true,MemberValueType>  ConstIterator;
     //! Non-constant iterator type
-    typedef GenericMemberIterator<false,EncodingType,AllocatorType,DerivedType> NonConstIterator;
+    typedef GenericMemberIterator<false,MemberValueType> NonConstIterator;
 
     /** \name std::iterator_traits support */
     //@{
@@ -263,15 +259,15 @@ public:
 
     //! @name relations
     //@{
-    template <bool Const_> bool operator==(const GenericMemberIterator<Const_, EncodingType, AllocatorType, DerivedType>& that) const { return ptr_ == that.ptr_; }
-    template <bool Const_> bool operator!=(const GenericMemberIterator<Const_, EncodingType, AllocatorType, DerivedType>& that) const { return ptr_ != that.ptr_; }
-    template <bool Const_> bool operator<=(const GenericMemberIterator<Const_, EncodingType, AllocatorType, DerivedType>& that) const { return ptr_ <= that.ptr_; }
-    template <bool Const_> bool operator>=(const GenericMemberIterator<Const_, EncodingType, AllocatorType, DerivedType>& that) const { return ptr_ >= that.ptr_; }
-    template <bool Const_> bool operator< (const GenericMemberIterator<Const_, EncodingType, AllocatorType, DerivedType>& that) const { return ptr_ < that.ptr_; }
-    template <bool Const_> bool operator> (const GenericMemberIterator<Const_, EncodingType, AllocatorType, DerivedType>& that) const { return ptr_ > that.ptr_; }
+    template <bool Const_> bool operator==(const GenericMemberIterator<Const_, MemberValueType>& that) const { return ptr_ == that.ptr_; }
+    template <bool Const_> bool operator!=(const GenericMemberIterator<Const_, MemberValueType>& that) const { return ptr_ != that.ptr_; }
+    template <bool Const_> bool operator<=(const GenericMemberIterator<Const_, MemberValueType>& that) const { return ptr_ <= that.ptr_; }
+    template <bool Const_> bool operator>=(const GenericMemberIterator<Const_, MemberValueType>& that) const { return ptr_ >= that.ptr_; }
+    template <bool Const_> bool operator< (const GenericMemberIterator<Const_, MemberValueType>& that) const { return ptr_ < that.ptr_; }
+    template <bool Const_> bool operator> (const GenericMemberIterator<Const_, MemberValueType>& that) const { return ptr_ > that.ptr_; }
 
 #ifdef __cpp_lib_three_way_comparison
-    template <bool Const_> std::strong_ordering operator<=>(const GenericMemberIterator<Const_, EncodingType, AllocatorType, DerivedType>& that) const { return ptr_ <=> that.ptr_; }
+    template <bool Const_> std::strong_ordering operator<=>(const GenericMemberIterator<Const_, MemberValueType>& that) const { return ptr_ <=> that.ptr_; }
 #endif
     //@}
 
@@ -296,27 +292,21 @@ private:
 
 // class-based member iterator implementation disabled, use plain pointers
 
-template <bool Const, typename EncodingType, typename AllocatorType, typename DerivedType>
+template <bool Const, typename MemberValueType>
 class GenericMemberIterator;
 
 //! non-const GenericMemberIterator
-template <typename EncodingType, typename AllocatorType, typename DerivedType>
-class GenericMemberIterator<false,EncodingType,AllocatorType,DerivedType> {
+template <typename MemberValueType>
+class GenericMemberIterator<false,MemberValueType> {
 public:
     //! use plain pointer as iterator type
-    typedef typename internal::SelectIf<internal::IsSame<DerivedType, void>,
-        GenericValue<EncodingType, AllocatorType, DerivedType>,
-        DerivedType>::Type MemberValueType;
     typedef GenericMember<MemberValueType>* Iterator;
 };
 //! const GenericMemberIterator
-template <typename EncodingType, typename AllocatorType, typename DerivedTyp>
-class GenericMemberIterator<true,EncodingType,AllocatorType,DerivedType> {
+template <typename MemberValueType>
+class GenericMemberIterator<true,MemberValueType> {
 public:
     //! use plain const pointer as iterator type
-    typedef typename internal::SelectIf<internal::IsSame<DerivedType, void>,
-        GenericValue<EncodingType, AllocatorType, DerivedType>,
-        DerivedType>::Type MemberValueType;
     typedef const GenericMember<MemberValueType>* Iterator;
 };
 
@@ -694,8 +684,8 @@ public:
     typedef GenericObject<false, ValueType> Object;
     typedef GenericObject<true, ValueType> ConstObject;
     typedef GenericMember<ValueType> Member;
-    typedef typename GenericMemberIterator<false,EncodingType,AllocatorType,DerivedType>::Iterator MemberIterator;  //!< Member iterator for iterating in object.
-    typedef typename GenericMemberIterator<true,EncodingType,AllocatorType,DerivedType>::Iterator ConstMemberIterator;  //!< Constant member iterator for iterating in object.
+    typedef typename GenericMemberIterator<false,ValueType>::Iterator MemberIterator;  //!< Member iterator for iterating in object.
+    typedef typename GenericMemberIterator<true,ValueType>::Iterator ConstMemberIterator;  //!< Constant member iterator for iterating in object.
     typedef ValueType* ValueIterator;            //!< Value iterator for iterating in array.
     typedef const ValueType* ConstValueIterator; //!< Constant value iterator for iterating in array.
 
@@ -3013,8 +3003,8 @@ public:
     typedef GenericObject<false, ValueT> Object;
     typedef ValueT PlainType;
     typedef typename internal::MaybeAddConst<Const,PlainType>::Type ValueType;
-    typedef GenericMemberIterator<Const, typename ValueT::EncodingType, typename ValueT::AllocatorType, typename ValueT::DerivedType> MemberIterator;  // This may be const or non-const iterator
-    typedef GenericMemberIterator<true, typename ValueT::EncodingType, typename ValueT::AllocatorType, typename ValueT::DerivedType> ConstMemberIterator;
+    typedef GenericMemberIterator<Const, ValueT> MemberIterator;  // This may be const or non-const iterator
+    typedef GenericMemberIterator<true, ValueT> ConstMemberIterator;
     typedef typename ValueType::AllocatorType AllocatorType;
     typedef typename ValueType::StringRefType StringRefType;
     typedef typename ValueType::EncodingType EncodingType;

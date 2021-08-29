@@ -104,7 +104,7 @@ class PrettyWriter;
 template <typename ValueType> 
 class GenericMember;
 
-template <bool Const, typename Encoding, typename Allocator, typename Derived>
+template <bool Const, typename MemberValueType>
 class GenericMemberIterator;
 
 template<typename CharType>
